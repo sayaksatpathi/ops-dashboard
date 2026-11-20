@@ -1,0 +1,55 @@
+name: probe
+
+# Public repo, so Actions minutes are free. Only schedule/manual triggers, never pull_request: forks cannot reach secrets.
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # GitHub may delay scheduled runs; healthchecks.io catches a missing run
+  workflow_dispatch:
+
+concurrency:
+  group: probe
+  cancel-in-progress: false   # two runs at once would both append to the same history
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest test_ops
+      - run: python3 ops.py --out site
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+          AITRADER_URL: ${{ secrets.AITRADER_URL }}
+          UPSTASH_URL: ${{ secrets.UPSTASH_URL }}
+          UPSTASH_READ_TOKEN: ${{ secrets.UPSTASH_READ_TOKEN }}
+          UPSTASH_DB_ID: ${{ secrets.UPSTASH_DB_ID }}
+          UPSTASH_EMAIL: ${{ secrets.UPSTASH_EMAIL }}
+          UPSTASH_API_KEY: ${{ secrets.UPSTASH_API_KEY }}
+          TG_AITRADER_TOKEN: ${{ secrets.TG_AITRADER_TOKEN }}
+          TG_JOBS_TOKEN: ${{ secrets.TG_JOBS_TOKEN }}
+          TG_ALERT_TOKEN: ${{ secrets.TG_ALERT_TOKEN }}
+          TG_ALERT_CHAT: ${{ secrets.TG_ALERT_CHAT }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
+      - name: heartbeat (the monitor's own dead-man's switch)
+        if: always()
+        env:
+          HC_PING_URL: ${{ secrets.HC_PING_URL }}
+        run: |
+          [ -z "$HC_PING_URL" ] && exit 0
+          suffix=$([ "${{ job.status }}" = "success" ] && echo "" || echo "/fail")
+          curl -fsS -m 10 --retry 3 "$HC_PING_URL$suffix" > /dev/null
