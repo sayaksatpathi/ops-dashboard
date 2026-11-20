@@ -30,20 +30,10 @@ Set-Secret TG_AITRADER_TOKEN $agent["TELEGRAM_BOT_TOKEN"]
 Set-Secret TG_ALERT_TOKEN $agent["TELEGRAM_BOT_TOKEN"]   # alerts come from the ai-trader bot to your own chat
 Set-Secret TG_ALERT_CHAT $agent["TELEGRAM_CHAT_ID"]
 
-Write-Host "Upstash read-only REST token (from the Vercel project's env)"
-$tmp = Join-Path $env:TEMP "ops-vercel-env-$PID"
-Push-Location $trader
-try {
-    npx --yes vercel@latest env pull $tmp --environment=production --yes | Out-Null
-    $v = Read-EnvFile $tmp
-    Set-Secret UPSTASH_URL $v["KV_REST_API_URL"]
-    Set-Secret UPSTASH_READ_TOKEN $v["KV_REST_API_READ_ONLY_TOKEN"]
-} finally {
-    Pop-Location
-    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
-}
-
 Write-Host "Values only you have"
+# Not pulled from Vercel: `vercel env pull` writes "[SENSITIVE]" instead of the real value for these.
+Set-Secret UPSTASH_URL (Read-Optional "Upstash REST URL (console -> database -> REST API)")
+Set-Secret UPSTASH_READ_TOKEN (Read-Optional "Upstash READ-ONLY token (same page, 'Read-Only Token')")
 Set-Secret TG_JOBS_TOKEN (Read-Optional "job-autopilot Telegram bot token")
 Set-Secret HC_PING_URL (Read-Optional "healthchecks.io ping URL")
 Set-Secret UPSTASH_DB_ID (Read-Optional "Upstash database id (console -> database -> details)")

@@ -33,4 +33,4 @@ python ops.py --out site      # checks without secrets report "not configured"
 ```
 
 ## Setup
-After creating the repo: `.\setup.ps1`. It copies the secrets from the ai-trader `.env` and from Vercel, asks for the rest, enables Pages and starts the first run.
+After creating the repo: `.\setup.ps1`. It copies the secrets from the ai-trader `.env`, asks for the rest (Upstash, the job bot, healthchecks.io), enables Pages and starts the first run.
